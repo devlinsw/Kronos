@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Kronos Lab</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/market.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Kronos Lab home"><span class="mark">K</span><span>KRONOS <em>LAB</em></span></a>
+      <div class="status"><span class="pulse"></span> RESEARCH MODE <span class="divider">/</span> TAILNET ONLY</div>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">FINANCIAL TIME-SERIES WORKBENCH</div>
+      <h1>Forecast the next<br><span>market bars.</span></h1>
+      <p>Fetch candles by ticker, interval, and count—or upload your own OHLCV CSV. No broker connection. No orders.</p>
+    </section>
+
+    <section class="workspace">
+      <div class="panel upload-panel">
+        <div class="panel-head"><div><span class="step">01</span><h2>Input candles</h2></div><span class="model-badge">LIVE · CSV</span></div>
+        <section class="provider-section" aria-labelledby="market-fetch-title">
+          <div class="subsection-head"><strong id="market-fetch-title">Fetch from market</strong><span>YAHOO · BEST EFFORT</span></div>
+          <form action="/forecast-market" method="post" class="market-form">
+            <label class="field-label" for="ticker">Ticker <span>US-listed</span></label>
+            <input class="text-input" id="ticker" name="ticker" type="text" value="{{ ticker }}" placeholder="MCD" maxlength="15" autocomplete="off" autocapitalize="characters" required>
+            <div class="control-row">
+              <div>
+                <label class="field-label" for="interval">Candle interval</label>
+                <select class="number-input" id="interval" name="interval">
+                  {% for option in ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1wk"] %}
+                  <option value="{{ option }}" {% if interval == option %}selected{% endif %}>{{ option }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="field-label" for="bars">Input bars</label>
+                <input class="number-input" id="bars" name="bars" type="number" min="32" max="512" step="1" value="{{ bars }}" required>
+              </div>
+            </div>
+            <label class="field-label" for="market-horizon">Forecast horizon <span>bars</span></label>
+            <input class="number-input" id="market-horizon" name="horizon" type="number" min="1" max="128" value="{{ horizon }}" required>
+            <button class="run-button" type="submit">FETCH &amp; RUN KRONOS <span>→</span></button>
+          </form>
+          <p class="provider-note">Only Yahoo-confirmed U.S.-listed USD equities. The NYSE calendar filters holidays and early closes; Yahoo data is best-effort and is not stored.</p>
+        </section>
+        <div class="form-divider"><span>OR UPLOAD CSV</span></div>
+        <form action="/forecast" method="post" enctype="multipart/form-data" class="csv-form">
+          <label class="dropzone" for="file">
+            <span class="upload-icon">↑</span>
+            <strong>Choose a candle CSV</strong>
+            <span id="filename">timestamp, open, high, low, close, volume</span>
+            <input id="file" name="file" type="file" accept=".csv,text/csv" required>
+          </label>
+          <label class="field-label" for="csv-horizon">Forecast horizon <span>bars</span></label>
+          <input class="number-input" id="csv-horizon" name="horizon" type="number" min="1" max="128" value="{{ horizon }}" required>
+          <button class="run-button secondary-run" type="submit">RUN UPLOADED CSV <span>→</span></button>
+        </form>
+        <div class="model-state"><span class="state-dot {% if model_loaded %}ready{% endif %}"></span><span>{% if model_loaded %}Checkpoint loaded{% else %}Checkpoint loads on first forecast{% endif %}</span><span class="state-model">Kronos-small · CPU</span></div>
+      </div>
+
+      <div class="panel output-panel">
+        <div class="panel-head"><div><span class="step">02</span><h2>Forecast output</h2></div><span class="model-badge">CLOSE · USD/PRICE UNITS</span></div>
+        {% if error %}
+          <div class="notice error"><strong>Couldn’t run forecast</strong><span>{{ error }}</span></div>
+        {% elif forecast %}
+          <div class="result-meta"><span>{{ data_rows }} input bars · last {{ [data_rows, 512]|min }} used</span><span>{{ source_label or "CSV upload" }}</span><span>{{ first_timestamp }} → {{ last_timestamp }}</span></div>
+          <div class="chart-wrap">{{ chart_svg | safe }}<div class="chart-legend"><span><i class="legend-h"></i>History</span><span><i class="legend-f"></i>Kronos forecast</span><span class="chart-split">forecast starts →</span></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Timestamp</th><th>Open</th><th>High</th><th>Low</th><th>Close</th></tr></thead><tbody>
+            {% for row in forecast %}<tr><td>{{ row.timestamp }}</td><td>{{ "%.4f"|format(row.open) }}</td><td>{{ "%.4f"|format(row.high) }}</td><td>{{ "%.4f"|format(row.low) }}</td><td class="close-cell">{{ "%.4f"|format(row.close) }}</td></tr>{% endfor %}
+          </tbody></table></div>
+        {% else %}
+          <div class="empty-state"><div class="empty-orbit"><span></span></div><strong>Your forecast will appear here</strong><p>Use chronological candles. Timestamps should match the market timezone and bar interval.</p><div class="empty-rule"></div><div class="specs"><span>MODEL <b>Kronos-small</b></span><span>MAX CONTEXT <b>512 bars</b></span><span>DECISION GATE <b>Not connected</b></span></div></div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="notes">
+      <div class="note"><span class="note-icon">i</span><div><strong>Research output only</strong><p>Single greedy forecast path—not a probability interval or trade recommendation. Validate with walk-forward backtests before drawing conclusions.</p></div></div>
+      <div class="note"><span class="note-icon">↗</span><div><strong>Timestamp assumption</strong><p>Market fetch uses the NYSE session calendar for holidays and early closes. CSV forecasts extrapolate from median input-bar spacing, so their exchange-session dates remain an assumption.</p></div></div>
+    </section>
+    <footer><span>KRONOS LAB <span class="footer-dim">· PRIVATE TAILNET SERVICE</span></span><a href="/health">SERVICE STATUS ↗</a></footer>
+  </main>
+  <script>
+    const file = document.getElementById('file');
+    file.addEventListener('change', () => {
+      document.getElementById('filename').textContent = file.files.length ? file.files[0].name : 'timestamp, open, high, low, close, volume';
+    });
+  </script>
+</body>
+</html>
