@@ -1,0 +1,2 @@
+#!/bin/sh
+printf '%s\n%s\n' "$KRONOS_TAILSCALE_IP" "$*" > "$TEST_CAPTURE"

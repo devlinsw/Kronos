@@ -1,0 +1,40 @@
+services:
+  kronos-lab:
+    container_name: kronos-lab
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kronos-lab:0.1.0
+    restart: unless-stopped
+    ports:
+      - "${KRONOS_TAILSCALE_IP:-127.0.0.1}:8128:8000/tcp"
+    environment:
+      KRONOS_TAILSCALE_IP: ${KRONOS_TAILSCALE_IP:-127.0.0.1}
+      KRONOS_APP_USER: ${KRONOS_APP_USER:-kronos}
+      KRONOS_APP_PASSWORD: ${KRONOS_APP_PASSWORD:-}
+      HF_HOME: /models/huggingface
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      TOKENIZERS_PARALLELISM: "false"
+    volumes:
+      - huggingface-cache:/models/huggingface
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 1536m
+    memswap_limit: 3g
+    cpus: 2.0
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+volumes:
+  huggingface-cache:

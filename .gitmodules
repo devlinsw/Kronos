@@ -1,0 +1,3 @@
+[submodule "kronos-lab-upstream"]
+	path = kronos-lab/vendor/Kronos
+	url = https://github.com/shiyu-coder/Kronos.git
